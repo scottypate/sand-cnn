@@ -1,0 +1,8 @@
+.DS_Store
+.idea
+*.env
+data/train/images/*.png
+data/train/masks/*.png
+data/test/*.png
+*__pycache__*
+
