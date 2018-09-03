@@ -64,7 +64,7 @@ class Convolution():
             name=name
         )
 
-    def left_feed_forward(self, input, stride=1, dilate=1, data_format='NHWC'):
+    def left_feed_forward(self, inputs, stride=1, dilate=1, data_format='NHWC'):
         '''
         The process to convolve the image and generate output for the layer
         Args:
@@ -76,9 +76,9 @@ class Convolution():
         Returns:
             A tensor with activations
         '''
-        self.input = input
+        self.inputs = inputs
         self.layer = tf.nn.conv2d(
-            input=input,
+            input=inputs,
             filter=self.filter,
             strides=[1, stride, stride, 1],
             padding='SAME',
@@ -89,11 +89,11 @@ class Convolution():
 
         return self.relu(self.layer)
 
-    def right_feed_forward(self, input, stride=2, data_format='NHWC'):
+    def right_feed_forward(self, inputs, stride=2, data_format='NHWC'):
         '''
         The process to convolve the image and generate output for the layer
         Args:
-            input: A tensor that represents the image
+            inputs: A tensor that represents the image
             stride: 1-D tensor of length 4. The amount to slide the filter overlay on the image.
                 The order of the dimensions is determined by data_format.
             dilate: The dilation factor for each dimension of input.
@@ -102,15 +102,14 @@ class Convolution():
         Returns:
             A tensor with activations
         '''
-        self.input  = input
-        current_shape = input.shape
-        batch_size = int(current_shape[0].value)
-        output_height = int(current_shape[1].value*2)
-        output_width = int(current_shape[2].value*2)
-        output_channels = int(current_shape[3].value/2)
+        current_shape = inputs.shape
+        batch_size = tf.shape(inputs)[0]
+        output_height = int(current_shape[1].value * 2)
+        output_width = int(current_shape[2].value * 2)
+        output_channels = int(current_shape[3].value / 2)
         output_shape = [batch_size, output_height, output_width, output_channels]
         self.layer = tf.nn.conv2d_transpose(
-            value=input,
+            value=inputs,
             filter=self.filter,
             output_shape=output_shape,
             strides=[1, stride, stride, 1],

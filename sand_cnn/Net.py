@@ -1,13 +1,19 @@
 import tensorflow as tf
 
-from Convolution import Convolution
+from .Convolution import Convolution
 
 class Net:
 
     def define_structure(self):
-        # Construct the layers of the network. The pixel growth and shrinkage
-        # is dependent on both the size of the input image and the number of
-        # convolution layers. 
+        '''
+        Construct the layers of the network. The pixel growth and shrinkage
+        is dependent on both the size of the input image and the number of
+        convolution layers. 
+        Args: 
+            None
+        Returns: 
+            None
+        '''
         self.conv_1_1 = Convolution(3, 3, 1, 3)
         self.conv_1_2 = Convolution(3, 3, 3, 3)
         self.conv_1_3 = Convolution(3, 3, 3, 3)
@@ -46,13 +52,37 @@ class Net:
 
         self.conv_10_out = Convolution(3, 3, 3, 1)
 
-    def placeholders(self, batch_size):
-        self.features = tf.placeholder(shape=[batch_size, 256, 256, 1],dtype=tf.float32)
-        self.labels = tf.placeholder(shape=[batch_size, 256, 256, 1],dtype=tf.float32)
+        return None
+
+    def create_placeholders(self):
+        '''
+        Create the placeholders for labels and features that are the correct shape
+        Args: None
+        Returns:
+            A dict of the placeholders for features and labels
+        '''
+
+        features = tf.placeholder(
+            shape=[None, 256, 256, 1],
+            dtype=tf.float32
+        )
+        labels = tf.placeholder(
+            shape=[None, 256, 256, 1],
+            dtype=tf.float32
+        )
+
+        return {'features': features, 'labels': labels}
 
     def connect_layers(self, features):
-        # Connect the layers to each other 
-        layer_1_1 = self.conv_1_1.left_feed_forward(self.features)
+        '''
+        Connect the layers to each other to control the flow
+        Args:
+            features: Tensor containing feature data
+        Return:
+            None
+        '''
+
+        layer_1_1 = self.conv_1_1.left_feed_forward(features)
         layer_1_2 = self.conv_1_2.left_feed_forward(layer_1_1)
         layer_1_3 = self.conv_1_3.left_feed_forward(layer_1_2)
 
@@ -130,22 +160,64 @@ class Net:
 
         self.layer_10 = self.conv_10_out.left_feed_forward(layer_9_3)
 
-    def execute(self, batch_size, features, labels, n_epochs):
+        return None
 
+    def predict(self, session, features):
+        '''
+        Gives access to the output layer of the network for use in 
+        generating new predictions for masks
+        Args:
+            session: A tensorflow session
+            features: Tensor of feature data
+        Returns:
+            A tensor of session results
+        '''
+
+        return session.run(fetches=[self.layer_10], feed_dict={self.placeholders['features']: features})
+
+    def create_session(self, batch_size, learning_rate):
+        '''
+        Creates a tensorflow session
+        Args:
+            batch_size: Int
+            learning_rate: Float
+        Returns:
+            A tensorflow session
+        '''
         self.define_structure()
-        self.placeholders(batch_size=batch_size)
-        self.connect_layers(features=self.features)
+        self.placeholders = self.create_placeholders()
+        self.connect_layers(features=self.placeholders['features'])
 
-        loss = tf.reduce_mean(tf.square(self.layer_10 - self.labels))
-        training_optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss)
+        self.loss = tf.reduce_mean(tf.square(self.layer_10 - self.placeholders['labels']))
+        self.training_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(self.loss)
 
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
+        session = tf.Session()
+        session.run(fetches=tf.global_variables_initializer())
 
-            for iter in range(n_epochs):
-                for current_batch_index in range(0,len(features),batch_size):
-                    current_batch = features[current_batch_index:current_batch_index+batch_size]
-                    current_label = labels[current_batch_index:current_batch_index+batch_size]
-                    sess_results = sess.run([loss, training_optimizer], feed_dict={self.features:current_batch,self.labels:current_label})
-                
-        return sess_results
+        return session
+
+    def train(self, session, batch_size, features, labels, n_epochs):
+        '''
+        Train the neural network in batches on a full set of feature data
+        Args:
+            session: A tensorflow session
+            batch_size: Int
+            features: Tensor of feature data
+            labels: Tensor of labels
+            n_epochs: Int
+        Returns:
+            None
+        '''
+        for iter in range(n_epochs):
+            for current_batch_index in range(0, len(features), batch_size):
+                current_batch = features[current_batch_index: current_batch_index+batch_size]
+                current_label = labels[current_batch_index: current_batch_index+batch_size]
+                sess_results = session.run(
+                    fetches=[self.loss, self.training_optimizer], 
+                    feed_dict={
+                        self.placeholders['features']: current_batch,
+                        self.placeholders['labels']: current_label
+                    }
+                )
+
+        return None
